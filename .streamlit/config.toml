@@ -1,0 +1,25 @@
+[theme]
+# EcoSort AI — Forest green / mint / off-white palette
+
+# Page background — off-white
+backgroundColor        = "#F8FAF5"
+
+# Sidebar background — slightly deeper off-white
+secondaryBackgroundColor = "#EEF3EC"
+
+# Primary accent — forest green (buttons, sliders, active elements)
+primaryColor           = "#2D6A4F"
+
+# Body text — deep green-black
+textColor              = "#1B2F1E"
+
+# Base font
+font                   = "sans serif"
+
+[server]
+# Prevent Streamlit from opening a browser tab automatically during dev
+# Set to true if you prefer auto-open
+headless = false
+
+[browser]
+gatherUsageStats = false

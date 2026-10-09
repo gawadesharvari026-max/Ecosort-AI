@@ -1,0 +1,26 @@
+# EcoSort AI — Python dependencies
+#
+# Environment: Python 3.14.3 / Windows 64-bit
+#
+# NOTE: sqlite3 is part of Python's standard library — not listed here.
+# NOTE: torch (PyTorch 2.14.1+cpu) is already installed separately.
+#       Install it via the official PyTorch wheel, not from this file.
+#
+# Install everything else with:
+#   pip install -r requirements.txt
+
+# ── Web application framework ────────────────────────────────────────────────
+streamlit==1.45.0
+
+# ── Image processing ─────────────────────────────────────────────────────────
+Pillow
+
+# ── Data handling ────────────────────────────────────────────────────────────
+pandas
+numpy
+
+# ── Machine learning utilities ───────────────────────────────────────────────
+scikit-learn
+
+# ── Charting / visualisation ─────────────────────────────────────────────────
+plotly
