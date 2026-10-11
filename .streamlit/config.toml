@@ -19,7 +19,7 @@ font                   = "sans serif"
 [server]
 # Prevent Streamlit from opening a browser tab automatically during dev
 # Set to true if you prefer auto-open
-headless = false
+headless = true
 
 [browser]
 gatherUsageStats = false
