@@ -6,24 +6,19 @@ Main Streamlit entry point.
 Responsibilities:
 - Sets the global page configuration (title, icon, layout).
 - Injects global CSS that complements the .streamlit/config.toml theme.
-- Enforces a login gate — all pages are hidden until the user logs in.
+- Enforces a login gate — any registered user can sign in.
+- New users can create an account via the Register tab.
 - Renders the sidebar header, branding, and logout button when logged in.
 - Shows a friendly notice when the ML model has not yet been configured.
 
-Login system (Option A — hardcoded credentials)
-------------------------------------------------
-Credentials are defined in the USERS dict below. This approach is suitable
-for local / internship demos. For a production deployment, move credentials
-to .streamlit/secrets.toml or a database with hashed passwords.
-
-Default credentials:
-  Username : admin
-  Password : ecosort123
-
-To change them, update the USERS dict below.
+Login system — SQLite user database
+-------------------------------------
+User accounts are stored in history.db (users table).
+Passwords are stored as SHA-256 hashes — never plain text.
+Any number of users can register. A default admin/ecosort123 account
+is seeded automatically on first run.
 """
 
-import hashlib
 import streamlit as st
 
 # ── Page configuration ────────────────────────────────────────────────────────
@@ -35,28 +30,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed",  # collapsed so sidebar CSS hide works cleanly
 )
 
-# ── Credentials ───────────────────────────────────────────────────────────────
-# Format: { "username": "sha256_hex_of_password" }
-# Passwords are stored as SHA-256 hashes — never in plain text.
-#
-# To generate a hash for a new password, run in Python:
-#   import hashlib; print(hashlib.sha256("yourpassword".encode()).hexdigest())
-#
-# Default: admin / ecosort123
-USERS: dict[str, str] = {
-    "admin": hashlib.sha256("ecosort123".encode()).hexdigest(),
-}
-
-
-def _hash(password: str) -> str:
-    """Return the SHA-256 hex digest of a password string."""
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
-def _check_credentials(username: str, password: str) -> bool:
-    """Return True if username exists and password matches its stored hash."""
-    return USERS.get(username.strip().lower()) == _hash(password)
-
+# ── Database — initialise on every startup ───────────────────────────────────
+# Creates the users + classifications tables and seeds the default admin
+# account if it does not exist yet. Safe to call repeatedly.
+from data.database import init_db, register_user, verify_user, user_exists
+init_db()
 
 # ── Session state — initialise before any rendering ──────────────────────────
 # Must be set before the CSS block so that st.rerun() after login lands on
@@ -163,7 +141,7 @@ if not st.session_state.logged_in:
         unsafe_allow_html=True,
     )
 
-    # Centred login card
+    # Centred card
     st.markdown("<div class='login-wrap'>", unsafe_allow_html=True)
 
     st.markdown(
@@ -181,27 +159,50 @@ if not st.session_state.logged_in:
         unsafe_allow_html=True,
     )
 
-    with st.form("login_form", clear_on_submit=False):
-        st.markdown("#### Sign in to continue")
-        username = st.text_input("Username", placeholder="Enter your username")
-        password = st.text_input("Password", type="password", placeholder="Enter your password")
-        submitted = st.form_submit_button("🔐 Sign In", use_container_width=True)
+    # ── Login / Register tabs ──────────────────────────────────────────────
+    tab_login, tab_register = st.tabs(["🔐 Sign In", "📝 Register"])
 
-        if submitted:
-            if not username or not password:
-                st.error("Please enter both username and password.")
-            elif _check_credentials(username, password):
-                st.session_state.logged_in = True
-                st.session_state.username  = username.strip().lower()
-                st.rerun()
-            else:
-                st.error("Incorrect username or password. Please try again.")
+    with tab_login:
+        with st.form("login_form", clear_on_submit=False):
+            st.markdown("##### Welcome back")
+            username = st.text_input("Username", placeholder="Enter your username", key="li_user")
+            password = st.text_input("Password", type="password", placeholder="Enter your password", key="li_pass")
+            submitted = st.form_submit_button("Sign In", use_container_width=True)
 
-    st.markdown(
-        "<p style='text-align:center; color:#57606a; font-size:0.8rem; "
-        "margin-top:1rem;'>Default: admin / ecosort123</p>",
-        unsafe_allow_html=True,
-    )
+            if submitted:
+                if not username or not password:
+                    st.error("Please enter both username and password.")
+                elif verify_user(username, password):
+                    st.session_state.logged_in = True
+                    st.session_state.username  = username.strip().lower()
+                    st.rerun()
+                else:
+                    st.error("Incorrect username or password. Please try again.")
+
+
+    with tab_register:
+        with st.form("register_form", clear_on_submit=True):
+            st.markdown("##### Create a new account")
+            new_user = st.text_input("Choose a username", placeholder="e.g. sharvari", key="reg_user")
+            new_pass = st.text_input("Choose a password", type="password", placeholder="At least 6 characters", key="reg_pass")
+            confirm  = st.text_input("Confirm password", type="password", placeholder="Re-enter your password", key="reg_conf")
+            reg_submitted = st.form_submit_button("Create Account", use_container_width=True)
+
+            if reg_submitted:
+                new_user = new_user.strip().lower()
+                if not new_user or not new_pass or not confirm:
+                    st.error("Please fill in all fields.")
+                elif len(new_user) < 3:
+                    st.error("Username must be at least 3 characters.")
+                elif len(new_pass) < 6:
+                    st.error("Password must be at least 6 characters.")
+                elif new_pass != confirm:
+                    st.error("Passwords do not match.")
+                elif user_exists(new_user):
+                    st.error(f"Username '{new_user}' is already taken. Please choose another.")
+                else:
+                    register_user(new_user, new_pass)
+                    st.success(f"Account created! Welcome, {new_user.capitalize()} 🎉 Please sign in using the Sign In tab.")
 
     st.markdown("</div>", unsafe_allow_html=True)
 

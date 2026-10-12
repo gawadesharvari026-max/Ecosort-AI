@@ -138,6 +138,7 @@ with col_result:
             predicted_label = result.label,
             confidence      = result.confidence,
             recommendation  = recommendation.get("tip", ""),
+            username        = st.session_state.get("username", ""),
         )
     except Exception as exc:
         # Database errors should not prevent the result from being shown
